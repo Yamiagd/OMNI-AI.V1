@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OMNI AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #space {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 30% 40%, #0a0e1a, #000000);
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 2s infinite alternate ease-in-out;
+    }
+    @keyframes twinkle {
+      0% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(2px);
+      transition: opacity 0.8s ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .logo-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .orbit {
+      position: absolute;
+      width: 100%; height: 100%;
+      border: 3px solid rgba(137, 207, 240, 0.6);
+      border-radius: 50%;
+      animation: spin 4s linear infinite;
+      box-shadow: 0 0 25px rgba(137, 207, 240, 0.3);
+    }
+    .orbit::before {
+      content: '';
+      position: absolute;
+      top: -6px; left: 50%;
+      width: 12px; height: 12px;
+      background: #FF3B30;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 0 20px #FF3B30;
+    }
+    .orbit::after {
+      content: '';
+      position: absolute;
+      bottom: -6px; right: 20%;
+      width: 8px; height: 8px;
+      background: #89CFF0;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #89CFF0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .orbit-inner {
+      position: absolute;
+      width: 75%; height: 75%;
+      top: 12.5%; left: 12.5%;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      animation: spin-reverse 6s linear infinite;
+    }
+    @keyframes spin-reverse {
+      to { transform: rotate(-360deg); }
+    }
+    .logo-text {
+      position: relative;
+      font-size: 3.8rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #FFFFFF;
+      text-shadow: 0 0 20px rgba(137,207,240,0.9), 0 0 60px rgba(137,207,240,0.5), 0 0 100px rgba(137,207,240,0.2);
+      z-index: 5;
+      font-family: 'Arial Black', sans-serif;
+      text-transform: uppercase;
+    }
+    .logo-text span { color: #FF3B30; }
+    #progress-bar {
+      margin-top: 40px;
+      width: 240px;
+      height: 4px;
+      background: #1a1f2e;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(137,207,240,0.2);
+    }
+    #progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #89CFF0, #FFFFFF, #89CFF0);
+      border-radius: 4px;
+      animation: load 2.5s ease-in-out forwards;
+    }
+    @keyframes load {
+      0% { width: 0%; }
+      80% { width: 85%; }
+      100% { width: 100%; }
+    }
+    #status {
+      color: #FFFFFF;
+      font-size: 0.9rem;
+      margin-top: 16px;
+      letter-spacing: 2px;
+      opacity: 0.8;
+      font-weight: 300;
+    }
+    #chat-ui {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 720px;
+      z-index: 20;
+      display: none;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(137,207,240,0.3);
+      border-radius: 30px;
+      padding: 8px 8px 8px 24px;
+      box-shadow: 0 0 40px rgba(137,207,240,0.1);
+      align-items: center;
+      gap: 8px;
+    }
+    #chat-ui.active { display: flex; }
+    #chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #FFFFFF;
+      font-size: 1.1rem;
+      padding: 12px 0;
+      font-family: inherit;
+    }
+    #chat-input::placeholder {
+      color: rgba(255,255,255,0.35);
+      font-weight: 300;
+    }
+    #chat-send {
+      background: #89CFF0;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 1.4rem;
+      color: #000;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(137,207,240,0.3);
+    }
+    #chat-send:hover {
+      background: #FFFFFF;
+      transform: scale(1.05);
+    }
+    #response-area {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 700px;
+      z-index: 15;
+      color: white;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 300;
+      text-shadow: 0 0 30px rgba(137,207,240,0.2);
+      display: none;
+      background: rgba(0,0,0,0.3);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    #response-area.active { display: block; }
+    @media (max-width: 480px) {
+      .logo-text { font-size: 2.8rem; }
+      .logo-wrap { width: 150px; height: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="space"></div>
+  <div id="loader">
+    <div class="logo-wrap">
+      <div class="orbit"></div>
+      <div class="orbit-inner"></div>
+      <div class="logo-text">OM<span>N</span>I</div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="status">INITIALIZING OMNI CORE...</div>
+  </div>
+  <div id="response-area">OMNI ready. Ask anything.</div>
+  <div id="chat-ui">
+    <input type="text" id="chat-input" placeholder="Ask OMNI anything..." autofocus>
+    <button id="chat-send">➤</button>
+  </div>
+  <script>
+    (function() {
+      const space = document.getElementById('space');
+      for (let i = 0; i < 180; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 2.5 + 0.5;
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = (Math.random() * 3) + 's';
+        star.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+        space.appendChild(star);
+      }
+      const loader = document.getElementById('loader');
+      const chatUI = document.getElementById('chat-ui');
+      const responseArea = document.getElementById('response-area');
+      const input = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('chat-send');
+      const statusText = document.getElementById('status');
+
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        chatUI.classList.add('active');
+        responseArea.classList.add('active');
+        statusText.textContent = 'OMNI ONLINE';
+        input.focus();
+      }, 3200);
+
+      function handleQuery() {
+        const msg = input.value.trim();
+        if (!msg) return;
+        responseArea.textContent = '⚡ OMNI: Processing "' + msg + '" – all known AI protocols merged. (demo)';
+        input.value = '';
+        input.focus();
+      }
+      sendBtn.addEventListener('click', handleQuery);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleQuery();
+      });
+      input.addEventListener('focus', () => {
+        chatUI.style.borderColor = '#89CFF0';
+        chatUI.style.boxShadow = '0 0 60px rgba(137,207,240,0.2)';
+      });
+      input.addEventListener('blur', () => {
+        chatUI.style.borderColor = 'rgba(137,207,240,0.3)';
+        chatUI.style.boxShadow = '0 0 40px rgba(137,207,240,0.1)';
+      });
+    })();
+  </script>
+</body>
+</html>
