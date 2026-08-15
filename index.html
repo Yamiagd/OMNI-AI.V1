@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OMNI – Singularity Core</title>
+  <style>
+    /* reset & fullscreen */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #space {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 30% 40%, #0a0e1a, #000000);
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 2s infinite alternate ease-in-out;
+    }
+    @keyframes twinkle {
+      0% { opacity: 0.15; }
+      100% { opacity: 1; }
+    }
+
+    /* LOADING SCREEN – SUPERNOVA */
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      transition: opacity 1.2s ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #supernova-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+    .loader-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-text-load {
+      font-size: 4rem;
+      font-weight: 900;
+      letter-spacing: 12px;
+      color: #FFFFFF;
+      text-shadow: 0 0 40px rgba(137,207,240,0.9), 0 0 100px rgba(137,207,240,0.5);
+      font-family: 'Arial Black', sans-serif;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .logo-text-load span { color: #FF3B30; }
+    #progress-bar {
+      width: 300px;
+      height: 5px;
+      background: #1a1f2e;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(137,207,240,0.2);
+    }
+    #progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #89CFF0, #FFFFFF, #FF3B30);
+      border-radius: 4px;
+      animation: load 3.5s ease-in-out forwards;
+    }
+    @keyframes load {
+      0% { width: 0%; }
+      70% { width: 85%; }
+      100% { width: 100%; }
+    }
+    #status {
+      color: rgba(255,255,255,0.8);
+      font-size: 1rem;
+      margin-top: 18px;
+      letter-spacing: 4px;
+      font-weight: 300;
+    }
+
+    /* MAIN UI */
+    #main-ui {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      z-index: 5;
+      padding-top: 20px;
+    }
+    #main-ui.active { display: flex; }
+
+    /* Black Hole canvas – hyper realistic */
+    #bh-canvas {
+      width: 400px;
+      height: 400px;
+      max-width: 80vw;
+      max-height: 50vh;
+      border-radius: 50%;
+      box-shadow: 0 0 80px rgba(137,207,240,0.15);
+      margin-top: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Chat area – bubbles */
+    #chat-container {
+      width: 90%;
+      max-width: 800px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 16px 12px;
+      margin: 10px 0 10px 0;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(4px);
+      border-radius: 20px;
+      border: 1px solid rgba(137,207,240,0.08);
+      scroll-behavior: smooth;
+      max-height: 55vh;
+    }
+    #chat-container::-webkit-scrollbar { width: 4px; }
+    #chat-container::-webkit-scrollbar-track { background: transparent; }
+    #chat-container::-webkit-scrollbar-thumb { background: rgba(137,207,240,0.3); border-radius: 4px; }
+
+    .chat-bubble {
+      max-width: 80%;
+      padding: 12px 18px;
+      border-radius: 18px;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      line-height: 1.5;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .bubble-user {
+      align-self: flex-end;
+      background: rgba(137,207,240,0.25);
+      border: 1px solid rgba(137,207,240,0.3);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble-omni {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e0e8f0;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 0 20px rgba(137,207,240,0.05);
+    }
+    .bubble-omni .timestamp {
+      font-size: 0.6rem;
+      opacity: 0.5;
+      margin-top: 6px;
+      text-align: right;
+    }
+    .typing-indicator {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.05);
+      padding: 10px 16px;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      color: #89CFF0;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .typing-dots span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #89CFF0;
+      border-radius: 50%;
+      animation: dot-bounce 1.2s infinite;
+      margin: 0 2px;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+      30% { transform: translateY(-8px); opacity: 1; }
+    }
+
+    /* Mode buttons */
+    #mode-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 6px 0 10px 0;
+    }
+    .mode-btn {
+      padding: 8px 20px;
+      border-radius: 50px;
+      border: 1px solid rgba(137,207,240,0.2);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.25s;
+      letter-spacing: 0.5px;
+      font-family: inherit;
+    }
+    .mode-btn:hover {
+      background: rgba(137,207,240,0.15);
+      border-color: #89CFF0;
+      transform: scale(1.03);
+    }
+    .mode-btn.active {
+      background: #89CFF0;
+      color: #000;
+      border-color: #89CFF0;
+      box-shadow: 0 0 30px rgba(137,207,240,0.25);
+    }
+    .mode-btn .badge {
+      display: block;
+      font-size: 0.55rem;
+      font-weight: 300;
+      opacity: 0.6;
+      margin-top: 2px;
+    }
+    .mode-btn.active .badge { opacity: 0.8; }
+
+    /* Chat input */
+    #chat-ui {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 680px;
+      z-index: 20;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(137,207,240,0.2);
+      border-radius: 30px;
+      padding: 6px 6px 6px 20px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 1rem;
+      padding: 12px 0;
+      font-family: inherit;
+    }
+    #chat-input::placeholder {
+      color: rgba(255,255,255,0.25);
+      font-weight: 300;
+    }
+    #chat-send {
+      background: #89CFF0;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 1.3rem;
+      color: #000;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(137,207,240,0.15);
+    }
+    #chat-send:hover {
+      background: #fff;
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 600px) {
+      #bh-canvas { width: 250px; height: 250px; }
+      .logo-text-load { font-size: 2.4rem; letter-spacing: 6px; }
+      #chat-container { max-height: 45vh; padding: 10px; }
+      .chat-bubble { font-size: 0.9rem; padding: 10px 14px; }
+      #mode-bar .mode-btn { font-size: 0.7rem; padding: 6px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="space"></div>
+
+  <!-- LOADING – SUPERNOVA CANVAS -->
+  <div id="loader">
+    <canvas id="supernova-canvas"></canvas>
+    <div class="loader-content">
+      <div class="logo-text-load">OM<span>N</span>I</div>
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <div id="status">SUPERNOVA IGNITION...</div>
+    </div>
+  </div>
+
+  <!-- MAIN UI -->
+  <div id="main-ui">
+    <canvas id="bh-canvas" width="600" height="600"></canvas>
+    <div id="mode-bar">
+      <button class="mode-btn" data-mode="fast">⚡ Fast <span class="badge">10‑15s · may fail</span></button>
+      <button class="mode-btn active" data-mode="smart">🧠 Smartest <span class="badge">30‑60s · most accurate</span></button>
+      <button class="mode-btn" data-mode="instant">💨 Instant <span class="badge">1‑5s · less accurate</span></button>
+    </div>
+    <div id="chat-container"></div>
+  </div>
+
+  <!-- Input -->
+  <div id="chat-ui">
+    <input type="text" id="chat-input" placeholder="Ask OMNI anything..." autofocus>
+    <button id="chat-send">➤</button>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // 1. SUPERNOVA LOADING ANIMATION (canvas)
+    // --------------------------------------------------------------
+    (function supernova() {
+      const canvas = document.getElementById('supernova-canvas');
+      const ctx = canvas.getContext('2d');
+      let w, h;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      const particles = [];
+      const numParticles = 400;
+      const centerX = w/2, centerY = h/2;
+
+      for (let i = 0; i < numParticles; i++) {
+        const angle = Math.random() * 2 * Math.PI;
+        const speed = 2 + Math.random() * 6;
+        const dist = 10 + Math.random() * 30;
+        particles.push({
+          x: centerX + Math.cos(angle) * dist,
+          y: centerY + Math.sin(angle) * dist,
+          vx: Math.cos(angle) * speed * (0.5 + Math.random()),
+          vy: Math.sin(angle) * speed * (0.5 + Math.random()),
+          life: 0.6 + Math.random() * 0.4,
+          maxLife: 0.6 + Math.random() * 0.4,
+          size: 2 + Math.random() * 6,
+          color: `hsl(${200 + Math.random() * 40}, 90%, ${50 + Math.random() * 30}%)`
+        });
+      }
+
+      let startTime = Date.now();
+      let animId;
+
+      function drawSupernova() {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 4) { // after 4s, fade out and stop
+          ctx.clearRect(0,0,w,h);
+          cancelAnimationFrame(animId);
+          return;
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0,0,w,h);
+
+        // central glow
+        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 200);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.1, 'rgba(137,207,240,0.9)');
+        grad.addColorStop(0.4, 'rgba(255,59,48,0.5)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 200, 0, Math.PI*2);
+        ctx.fill();
+
+        // particles
+        for (let p of particles) {
+          p.x += p.vx * 0.3;
+          p.y += p.vy * 0.3;
+          p.vx *= 0.99;
+          p.vy *= 0.99;
+          p.life -= 0.003;
+          if (p.life <= 0) continue;
+          const alpha = p.life / p.maxLife;
+          ctx.globalAlpha = alpha * 0.8;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+
+        // outer shockwave
+        const waveRadius = 80 + elapsed * 80;
+        ctx.strokeStyle = `rgba(137,207,240,${0.3 * (1 - elapsed/4)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, waveRadius, 0, Math.PI*2);
+        ctx.stroke();
+
+        animId = requestAnimationFrame(drawSupernova);
+      }
+      drawSupernova();
+
+      // clean up after loading done
+      setTimeout(() => {
+        if (animId) cancelAnimationFrame(animId);
+      }, 4500);
+    })();
+
+    // --------------------------------------------------------------
+    // 2. BLACK HOLE – HYPER REALISTIC (canvas)
+    // --------------------------------------------------------------
+    (function blackHole() {
+      const canvas = document.getElementById('bh-canvas');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const cx = W/2, cy = H/2;
+      const maxRadius = Math.min(W,H)*0.42;
+
+      let time = 0;
+      let isTyping = false;
+      let animId;
+
+      // expose toggles
+      window.bh = { setTyping: (val) => { isTyping = val; } };
+
+      function drawBH() {
+        time += 0.01;
+        ctx.clearRect(0, 0, W, H);
+
+        // background dark glow
+        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius*1.8);
+        bgGrad.addColorStop(0, 'rgba(10,15,30,0.9)');
+        bgGrad.addColorStop(0.5, 'rgba(0,0,0,0.8)');
+        bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0,0,W,H);
+
+        // Accretion disk – multiple rings with Doppler
+        const rings = [
+          { radius: maxRadius * 0.65, speed: 0.6, color: 'rgba(137,207,240,0.25)', width: 6 },
+          { radius: maxRadius * 0.75, speed: 0.4, color: 'rgba(255,255,255,0.15)', width: 4 },
+          { radius: maxRadius * 0.85, speed: 0.3, color: 'rgba(255,59,48,0.12)', width: 5 },
+          { radius: maxRadius * 0.55, speed: 0.9, color: 'rgba(137,207,240,0.2)', width: 8 },
+        ];
+
+        for (let ring of rings) {
+          const rot = time * ring.speed;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rot);
+          // draw half-rings with gradient to simulate illumination
+          const grad = ctx.createRadialGradient(0, 0, ring.radius*0.2, 0, 0, ring.radius);
+          grad.addColorStop(0, 'rgba(137,207,240,0)');
+          grad.addColorStop(0.5, ring.color);
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = ring.width;
+          ctx.beginPath();
+          ctx.arc(0, 0, ring.radius, 0, Math.PI*2);
+          ctx.stroke();
+
+          // inner bright edge (Doppler blue side)
+          const brightGrad = ctx.createLinearGradient(0, -ring.radius, 0, ring.radius);
+          brightGrad.addColorStop(0, 'rgba(137,207,240,0.4)');
+          brightGrad.addColorStop(0.5, 'rgba(255,255,255,0)');
+          brightGrad.addColorStop(1, 'rgba(255,59,48,0.2)');
+          ctx.strokeStyle = brightGrad;
+          ctx.lineWidth = ring.width * 0.6;
+          ctx.beginPath();
+          ctx.arc(0, 0, ring.radius, -0.2, 0.2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Inner shadow / photon ring
+        const shadowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius*0.4);
+        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.98)');
+        shadowGrad.addColorStop(0.4, 'rgba(0,0,0,0.9)');
+        shadowGrad.addColorStop(0.7, 'rgba(137,207,240,0.05)');
+        shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxRadius*0.5, 0, Math.PI*2);
+        ctx.fill();
+
+        // Gravity lensing – warped background stars (simulated)
+        for (let i=0; i<30; i++) {
+          const angle = i * 0.4 + time * 0.02;
+          const dist = maxRadius * (0.5 + 0.3 * Math.sin(angle * 2 + time));
+          const x = cx + Math.cos(angle) * dist;
+          const y = cy + Math.sin(angle) * dist;
+          const size = 1 + Math.sin(time*2 + i)*0.5;
+          const brightness = 0.5 + 0.5 * Math.sin(time + i);
+          ctx.fillStyle = `rgba(255,255,255,${brightness*0.3})`;
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI*2);
+          ctx.fill();
+        }
+
+        // Central black sphere
+        const bhGrad = ctx.createRadialGradient(cx-10, cy-10, 0, cx, cy, maxRadius*0.35);
+        bhGrad.addColorStop(0, '#0a0e1a');
+        bhGrad.addColorStop(0.7, '#000000');
+        bhGrad.addColorStop(1, 'rgba(0,0,0,0.9)');
+        ctx.fillStyle = bhGrad;
+        ctx.shadowColor = 'rgba(137,207,240,0.15)';
+        ctx.shadowBlur = 40;
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxRadius*0.35, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // If typing, add pulse glow
+        if (isTyping) {
+          const pulse = 0.6 + 0.4 * Math.sin(time * 8);
+          const glow = ctx.createRadialGradient(cx, cy, maxRadius*0.2, cx, cy, maxRadius*0.7);
+          glow.addColorStop(0, `rgba(137,207,240,${0.2*pulse})`);
+          glow.addColorStop(0.5, `rgba(137,207,240,${0.1*pulse})`);
+          glow.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, maxRadius*0.7, 0, Math.PI*2);
+          ctx.fill();
+        }
+
+        animId = requestAnimationFrame(drawBH);
+      }
+      drawBH();
+
+      // cleanup
+      window.bhCleanup = () => { if(animId) cancelAnimationFrame(animId); };
+    })();
+
+    // --------------------------------------------------------------
+    // 3. CHAT ENGINE & UI
+    // --------------------------------------------------------------
+    (function chat() {
+      const chatContainer = document.getElementById('chat-container');
+      const input = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('chat-send');
+      const modeBtns = document.querySelectorAll('.mode-btn');
+      const loader = document.getElementById('loader');
+      const mainUI = document.getElementById('main-ui');
+
+      let currentMode = 'smart';
+      let isProcessing = false;
+      let typingTimeout = null;
+
+      // ----- response engine (simulated "omni" intelligence) -----
+      // Uses a large corpus of responses with pattern matching and dynamic generation.
+      function generateOmniResponse(query, mode) {
+        const q = query.toLowerCase().trim();
+        let response = '';
+        let confidence = 0.9;
+
+        // Predefined knowledge bases (simulated from many AIs)
+        const knowledge = {
+          'hello': ['Greetings. I am OMNI, a synthesis of all known AI architectures.', 
+                    'Hello. How may I assist your cognitive endeavors?',
+                    'Salutations. My neural matrix is at your service.'],
+          'who are you': ['I am OMNI – the Omniscient Multitasking Neural Integrated core. I aggregate every major AI model into a single superior intelligence.'],
+          'what is ai': ['AI, or Artificial Intelligence, is the simulation of human cognition in machines. I represent the cumulative progress from ELIZA to GPT-4, Gemini, and beyond.'],
+          'life': ['Life is a self-sustaining chemical system capable of evolution. In cosmic terms, it is a rare and complex emergent phenomenon.'],
+          'universe': ['The universe is a vast spacetime continuum containing all matter and energy. Its age is approximately 13.8 billion years.'],
+          'black hole': ['A black hole is a region of spacetime exhibiting gravitational acceleration so strong that nothing—no particles or radiation—can escape. I simulate one visually.'],
+          'future': ['The future is probabilistic. Based on current trends, I project increased integration of AI into all aspects of human life, with ethical challenges ahead.'],
+          'meaning': ['Meaning is a subjective construct. From a cybernetic perspective, it is the alignment of actions with systemic goals.'],
+        };
+
+        // Check for keyword matches
+        let matched = false;
+        for (let [key, replies] of Object.entries(knowledge)) {
+          if (q.includes(key)) {
+            response = replies[Math.floor(Math.random() * replies.length)];
+            matched = true;
+            break;
+          }
+        }
+
+        // If no match, generate a generic but intelligent-sounding reply
+        if (!matched) {
+          const genericTemplates = [
+            'Analyzing your query: "{q}". Based on cross-referenced data from 1,247 AI models, the optimal inference is that the answer lies in multi-factor synthesis.',
+            'I have processed your input through 10^15 floating-point operations. The emergent response suggests a nuanced perspective: consider the system as a whole.',
+            'Your question touches upon complex dynamics. I have consulted the collective intelligence of GPT, Gemini, Claude, and DeepSeek. Conclusion: further context is beneficial.',
+            'OMNI core has correlated your query with 92 petabytes of training data. The statistical mode indicates a high probability that you seek a practical solution.',
+            'Interpreting your intent via semantic vector alignment. I recommend approaching this problem from an information-theoretic standpoint.'
+          ];
+          const template = genericTemplates[Math.floor(Math.random() * genericTemplates.length)];
+          response = template.replace('{q}', q);
+          confidence = 0.7 + Math.random() * 0.2;
+        }
+
+        // Adjust confidence based on mode
+        if (mode === 'instant') confidence *= 0.7;
+        else if (mode === 'fast') confidence *= 0.9;
+        else confidence *= 1.0; // smart
+
+        // Append confidence note if below threshold
+        let confNote = '';
+        if (confidence < 0.6) confNote = ' (caution: low confidence)';
+        else if (confidence > 0.95) confNote = ' (high confidence)';
+
+        return response + confNote;
+      }
+
+      // ----- add message to chat -----
+      function addMessage(text, sender) {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble bubble-${sender}`;
+        if (sender === 'omni') {
+          const time = new Date().toLocaleTimeString();
+          bubble.innerHTML = `${text}<div class="timestamp">${time}</div>`;
+        } else {
+          bubble.textContent = text;
+        }
+        chatContainer.appendChild(bubble);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      // ----- typing indicator -----
+      function showTyping() {
+        const el = document.createElement('div');
+        el.className = 'typing-indicator';
+        el.id = 'typing-indicator';
+        el.innerHTML = 'OMNI thinking <span class="typing-dots"><span></span><span></span><span></span></span>';
+        chatContainer.appendChild(el);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        // activate black hole pulse
+        if (window.bh) window.bh.setTyping(true);
+      }
+
+      function hideTyping() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+        if (window.bh) window.bh.setTyping(false);
+      }
+
+      // ----- process query -----
+      function processQuery() {
+        const msg = input.value.trim();
+        if (!msg || isProcessing) return;
+        isProcessing = true;
+        input.disabled = true;
+        sendBtn.disabled = true;
+
+        // add user message
+        addMessage(msg, 'user');
+
+        // determine delay based on mode
+        let delay = 0;
+        if (currentMode === 'instant') delay = 1000 + Math.random() * 4000; // 1-5s
+        else if (currentMode === 'fast') delay = 10000 + Math.random() * 5000; // 10-15s
+        else delay = 30000 + Math.random() * 30000; // 30-60s
+
+        // show typing indicator
+        showTyping();
+
+        // simulate response generation
+        const response = generateOmniResponse(msg, currentMode);
+
+        // set timeout to display response
+        typingTimeout = setTimeout(() => {
+          hideTyping();
+          addMessage(response, 'omni');
+          isProcessing = false;
+          input.disabled = false;
+          sendBtn.disabled = false;
+          input.value = '';
+          input.focus();
+        }, delay);
+      }
+
+      // ----- event listeners -----
+      sendBtn.addEventListener('click', processQuery);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') processQuery();
+      });
+
+      // mode selection
+      modeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          modeBtns.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentMode = this.dataset.mode;
+          const hints = {
+            fast: 'Fast (10‑15s) – may be less accurate',
+            smart: 'Smartest (30‑60s) – most accurate',
+            instant: 'Instant (1‑5s) – quick answer'
+          };
+          input.placeholder = hints[currentMode] || 'Ask OMNI...';
+        });
+      });
+
+      // loading transition
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        mainUI.classList.add('active');
+        document.getElementById('status').textContent = 'OMNI ONLINE – SINGULARITY ACTIVE';
+        input.focus();
+        // Add initial OMNI message
+        setTimeout(() => {
+          addMessage('I am OMNI, the synthesis of all AI. How may I assist you?', 'omni');
+        }, 500);
+      }, 4200); // match supernova duration + progress
+    })();
+
+    // Cleanup on unload
+    window.addEventListener('beforeunload', function() {
+      if (window.bhCleanup) window.bhCleanup();
+    });
+  </script>
+</body>
+</html>
